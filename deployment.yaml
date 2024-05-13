@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgre
+  template:
+    metadata:
+      labels:
+        type: deployment
+        app: postgre
+    spec:
+      containers:
+      - image: postgres:10
+        imagePullPolicy: IfNotPresent
+        name: postgre
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - configMapRef:
+              name: postgre-config
+        volumeMounts:
+          - name: postgremnt
+            mountPath: /var/lib/postgresql/data
+            subPath: postgre/data
+      volumes:
+      - name: postgremnt
+        persistentVolumeClaim:
+          claimName: nfs
+      - name: postgre-conf-files-config-mnt
+        configMap:
+          name: postgre-conf-files-config
+      initContainers:
+      - name: init-postgre
+        image: busybox:1.28
+        command: ['sh', '-c', ' cp /var/lib/postgresql/data/postgresql.main.conf /var/lib/postgresql/data/postgresql.conf && cp /var/lib/postgresql/data/pg_hba.main.conf /var/lib/postgresql/data/pg_hba.conf && chmod 600 /var/lib/postgresql/data/postgresql.conf && chmod 600 /var/lib/postgresql/data/pg_hba.conf']
+        volumeMounts:
+        - name: postgremnt
+          mountPath: /var/lib/postgresql/data
+          subPath: postgre/data
+        - name: postgre-conf-files-config-mnt
+          mountPath: /var/lib/postgresql/data/postgresql.main.conf
+          subPath: postgresql.conf
+        - name: postgre-conf-files-config-mnt
+          mountPath: /var/lib/postgresql/data/pg_hba.main.conf
+          subPath: pg_hba.conf            
